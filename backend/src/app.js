@@ -7,6 +7,7 @@ import chunkRoutes from "./routes/chunkRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
+import ragRoutes from "./routes/ragRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
 
 const app = express();
@@ -25,6 +26,7 @@ app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 app.use("/api", healthRoutes);
 app.use("/api", chatRoutes);
 app.use("/api/search", searchRoutes);
+app.use("/api/rag", ragRoutes);
 app.use("/api/chroma", chromaRoutes);
 app.use("/api/chunks", chunkRoutes);
 app.use("/api/documents", documentRoutes);
