@@ -1,9 +1,46 @@
-import { GoogleGenAI } from "@google/genai";
 import { generateEmbedding } from "./embeddingService.js";
 import { searchChromaEmbeddings } from "./chromaService.js";
+import { GeminiServiceError } from "./geminiService.js";
+import { generateGroqAnswer, GROQ_MODEL } from "./groqService.js";
 
-const CHAT_MODEL = "gemini-2.5-flash";
 const FALLBACK_MESSAGE = "I could not find this information in the uploaded documents.";
+
+const getSafeCitationTitle = (metadata) => {
+  const title = metadata?.documentTitle?.trim?.() || "";
+
+  return title || "Unknown document";
+};
+
+const getSafeCitationPageNumber = (metadata) => {
+  const pageNumber = metadata?.pageNumber;
+
+  return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : "Unknown Page";
+};
+
+const deduplicateCitations = (results) => {
+  const seen = new Set();
+  const citations = [];
+
+  for (const result of results) {
+    const documentTitle = getSafeCitationTitle(result.metadata);
+    const pageNumber = getSafeCitationPageNumber(result.metadata);
+    const category = result.metadata?.category?.trim?.() || "";
+    const key = `${documentTitle}:${pageNumber}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    citations.push({
+      documentTitle,
+      category,
+      pageNumber
+    });
+  }
+
+  return citations;
+};
 
 const buildContext = (results) =>
   results
@@ -32,20 +69,22 @@ Question:
 ${question}`;
 
 export const answerQuestionWithRag = async (question) => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
 
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not defined");
+    throw new Error("GROQ_API_KEY is not defined");
   }
 
   const trimmedQuestion = question?.trim();
 
   if (!trimmedQuestion) {
-    throw new Error("Question is required");
+    throw new GeminiServiceError("INTERNAL_ERROR", "Question is required.", 400);
   }
 
-  const queryEmbedding = await generateEmbedding(trimmedQuestion);
-  const retrievedResults = await searchChromaEmbeddings(queryEmbedding, 5);
+  const requestStartedAt = Date.now();
+  const { embedding: queryEmbedding, retryCount: queryEmbeddingRetries } =
+    await generateEmbedding(trimmedQuestion);
+  const retrievedResults = await searchChromaEmbeddings(queryEmbedding, 3);
 
   console.log("Question:");
   console.log(trimmedQuestion);
@@ -53,31 +92,38 @@ export const answerQuestionWithRag = async (question) => {
   console.log(retrievedResults.length);
   console.log("Source Documents:");
   console.log(
-    [...new Set(retrievedResults.map((result) => result.metadata?.title).filter(Boolean))].join(", ")
+    [...new Set(retrievedResults.map((result) => result.metadata?.documentTitle).filter(Boolean))].join(", ")
   );
 
   if (retrievedResults.length === 0) {
     return {
       answer: FALLBACK_MESSAGE,
-      sources: []
+      citations: [],
+      retryCount: queryEmbeddingRetries,
+      responseTimeMs: Date.now() - requestStartedAt
     };
   }
 
   const context = buildContext(retrievedResults);
   const prompt = buildPrompt(trimmedQuestion, context);
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model: CHAT_MODEL,
-    contents: prompt
-  });
+  const generationStartedAt = Date.now();
+  const answer = (await generateGroqAnswer(prompt)) || FALLBACK_MESSAGE;
+  const generationTimeMs = Date.now() - generationStartedAt;
+  const responseTimeMs = Date.now() - requestStartedAt;
 
-  const answer = response.text?.trim() || FALLBACK_MESSAGE;
+  console.log("Model Used:");
+  console.log(GROQ_MODEL);
+  console.log("Generated Citations:");
+  console.log(deduplicateCitations(retrievedResults));
+  console.log("Response Time:");
+  console.log(`${generationTimeMs}ms`);
+  console.log(`Retry Count: ${queryEmbeddingRetries}`);
+  console.log(`Response Time: ${responseTimeMs}ms`);
 
   return {
     answer,
-    sources: retrievedResults.map((result) => ({
-      documentId: result.metadata?.documentId || "",
-      chunkIndex: result.metadata?.chunkIndex || 0
-    }))
+    citations: deduplicateCitations(retrievedResults),
+    retryCount: queryEmbeddingRetries,
+    responseTimeMs
   };
 };

@@ -2,14 +2,19 @@ import { useState } from "react";
 import { sendChatMessage } from "../services/chatService";
 
 const getFriendlyErrorMessage = (error) => {
+  const errorCode = error?.errorCode;
   const status = error?.status;
 
-  if (status === 503) {
+  if (errorCode === "SERVICE_BUSY" || status === 503) {
     return "AI service is currently busy. Please try again in a few seconds.";
   }
 
-  if (status === 429) {
-    return "Too many requests. Please wait before trying again.";
+  if (errorCode === "RATE_LIMIT" || status === 429) {
+    return "Too many requests. Please wait and try again.";
+  }
+
+  if (errorCode === "TIMEOUT" || status === 504) {
+    return "The request took too long. Please try again.";
   }
 
   if (status === 500) {
@@ -51,7 +56,8 @@ function Chat() {
       const assistantMessage = {
         id: Date.now() + 1,
         role: "assistant",
-        content: response?.answer || ""
+        content: response?.answer || "",
+        citations: Array.isArray(response?.citations) ? response.citations : []
       };
 
       setMessages((currentMessages) => [...currentMessages, assistantMessage]);
@@ -108,6 +114,30 @@ function Chat() {
                 {entry.role === "user" ? "User" : "Assistant"}
               </p>
               <p className="whitespace-pre-wrap text-slate-900">{entry.content || ""}</p>
+              {entry.role === "assistant" &&
+              Array.isArray(entry.citations) &&
+              entry.citations.length > 0 ? (
+                <details className="pt-2">
+                  <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                    Sources
+                  </summary>
+                  <div className="mt-2 space-y-2 text-sm text-slate-600">
+                    {entry.citations.map((citation, index) => (
+                      <div
+                        key={`${entry.id}-${citation.documentTitle}-${citation.pageNumber}-${citation.chunkIndex}-${index}`}
+                      >
+                        <div>
+                          {citation.documentTitle || "Unknown document"} (Page{" "}
+                          {citation.pageNumber || 0})
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          Chunk {citation.chunkIndex || 0}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              ) : null}
             </div>
           ))}
 

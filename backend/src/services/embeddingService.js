@@ -1,14 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
+import { executeGeminiRequest } from "./geminiService.js";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
-const MAX_RETRIES = 2;
-
-const wait = (durationMs) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, durationMs);
-  });
-
-export const generateEmbedding = async (text, retryCount = MAX_RETRIES) => {
+export const generateEmbedding = async (text) => {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -20,26 +14,21 @@ export const generateEmbedding = async (text, retryCount = MAX_RETRIES) => {
   }
 
   const ai = new GoogleGenAI({ apiKey });
-
-  try {
-    const response = await ai.models.embedContent({
+  const { result: response, retryCount } = await executeGeminiRequest(() =>
+    ai.models.embedContent({
       model: EMBEDDING_MODEL,
       contents: text.trim()
-    });
+    })
+  );
 
-    const vector = response?.embeddings?.[0]?.values || response?.embedding?.values;
+  const vector = response?.embeddings?.[0]?.values || response?.embedding?.values;
 
-    if (!Array.isArray(vector) || vector.length === 0) {
-      throw new Error("Embedding vector was not returned");
-    }
-
-    return vector;
-  } catch (error) {
-    if (retryCount > 0) {
-      await wait(500);
-      return generateEmbedding(text, retryCount - 1);
-    }
-
-    throw error;
+  if (!Array.isArray(vector) || vector.length === 0) {
+    throw new Error("Embedding vector was not returned");
   }
+
+  return {
+    embedding: vector,
+    retryCount
+  };
 };

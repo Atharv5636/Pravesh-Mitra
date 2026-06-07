@@ -10,7 +10,13 @@ export const extractPdfText = async (filePath) => {
 
     return {
       text: result?.text?.trim() || "",
-      totalPages: result?.total || 0
+      totalPages: result?.total || 0,
+      pages: Array.isArray(result?.pages)
+        ? result.pages.map((page) => ({
+            pageNumber: page?.num || 0,
+            text: page?.text?.trim?.() || ""
+          }))
+        : []
     };
   } finally {
     await parser.destroy();

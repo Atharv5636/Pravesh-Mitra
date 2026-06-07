@@ -3,6 +3,7 @@ import multer from "multer";
 import {
   deleteDocument,
   getDocumentChunks,
+  getDocumentPage,
   getDocumentText,
   getDocuments,
   uploadDocument
@@ -32,6 +33,7 @@ const handleDocumentUpload = (request, response, next) => {
 };
 
 router.get("/", getDocuments);
+router.get("/:id/pages/:page", getDocumentPage);
 router.get("/:id/chunks", getDocumentChunks);
 router.get("/:id/text", getDocumentText);
 router.post("/upload", handleDocumentUpload, uploadDocument);

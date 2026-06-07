@@ -6,8 +6,10 @@ import {
   deleteDocumentById,
   extractAndSaveDocumentText,
   getDocumentChunksById,
+  getDocumentPageContentById,
   getAllDocuments,
-  getDocumentTextById
+  getDocumentTextById,
+  reprocessDocumentById
 } from "../services/documentService.js";
 
 const categories = new Set([
@@ -156,6 +158,36 @@ export const getDocumentChunks = async (request, response) => {
   }
 };
 
+export const getDocumentPage = async (request, response) => {
+  try {
+    const pageNumber = Number.parseInt(request.params.page, 10);
+
+    if (!Number.isInteger(pageNumber) || pageNumber <= 0) {
+      return response.status(400).json({
+        success: false,
+        message: "Valid page number is required."
+      });
+    }
+
+    const result = await getDocumentPageContentById(request.params.id, pageNumber);
+
+    if (!result) {
+      return response.status(404).json({
+        success: false,
+        message: "Document not found."
+      });
+    }
+
+    return response.status(200).json(result);
+  } catch (error) {
+    console.error("Get document page error:", error);
+    return response.status(500).json({
+      success: false,
+      message: "Failed to fetch page content."
+    });
+  }
+};
+
 export const deleteDocument = async (request, response) => {
   try {
     const document = await deleteDocumentById(request.params.id);
@@ -176,6 +208,31 @@ export const deleteDocument = async (request, response) => {
     return response.status(500).json({
       success: false,
       message: "Failed to delete document."
+    });
+  }
+};
+
+export const reprocessDocument = async (request, response) => {
+  try {
+    const document = await reprocessDocumentById(request.params.id);
+
+    if (!document) {
+      return response.status(404).json({
+        success: false,
+        message: "Document not found."
+      });
+    }
+
+    return response.status(200).json({
+      success: true,
+      message: "Document reprocessed successfully.",
+      document
+    });
+  } catch (error) {
+    console.error("Reprocess document error:", error);
+    return response.status(500).json({
+      success: false,
+      message: error?.message || "Failed to reprocess document."
     });
   }
 };

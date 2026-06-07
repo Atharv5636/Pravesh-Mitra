@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import adminRoutes from "./routes/adminRoutes.js";
 import chromaRoutes from "./routes/chromaRoutes.js";
 import chunkRoutes from "./routes/chunkRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
@@ -25,6 +26,7 @@ app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 
 app.use("/api", healthRoutes);
 app.use("/api", chatRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/rag", ragRoutes);
 app.use("/api/chroma", chromaRoutes);

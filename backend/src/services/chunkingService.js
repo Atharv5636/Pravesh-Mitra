@@ -44,3 +44,29 @@ export const splitTextIntoChunks = (text) => {
 
   return chunks;
 };
+
+export const splitPagesIntoChunks = (pages) => {
+  if (!Array.isArray(pages) || pages.length === 0) {
+    return [];
+  }
+
+  const allChunks = [];
+  let chunkCounter = 1;
+
+  for (const page of pages) {
+    const pageNumber = page?.pageNumber || 0;
+    const pageChunks = splitTextIntoChunks(page?.text || "");
+
+    for (const pageChunk of pageChunks) {
+      allChunks.push({
+        chunkIndex: chunkCounter,
+        pageNumber,
+        chunkText: pageChunk.chunkText,
+        chunkLength: pageChunk.chunkLength
+      });
+      chunkCounter += 1;
+    }
+  }
+
+  return allChunks;
+};

@@ -12,7 +12,7 @@ export const searchDocuments = async (request, response) => {
       });
     }
 
-    const queryEmbedding = await generateEmbedding(query);
+    const { embedding: queryEmbedding } = await generateEmbedding(query);
     const results = await searchChromaEmbeddings(queryEmbedding, 5);
 
     return response.status(200).json({

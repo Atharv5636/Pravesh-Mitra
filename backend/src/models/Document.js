@@ -29,6 +29,15 @@ const documentSchema = new mongoose.Schema({
     type: String,
     default: ""
   },
+  pageContents: {
+    type: [
+      {
+        pageNumber: Number,
+        content: String
+      }
+    ],
+    default: []
+  },
   totalPages: {
     type: Number,
     default: 0

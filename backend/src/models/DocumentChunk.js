@@ -11,6 +11,10 @@ const documentChunkSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  pageNumber: {
+    type: Number,
+    required: true
+  },
   chunkText: {
     type: String,
     required: true,
