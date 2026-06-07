@@ -4,7 +4,9 @@ import multer from "multer";
 import {
   createDocument,
   deleteDocumentById,
-  getAllDocuments
+  extractAndSaveDocumentText,
+  getAllDocuments,
+  getDocumentTextById
 } from "../services/documentService.js";
 
 const categories = new Set([
@@ -69,6 +71,12 @@ export const uploadDocument = async (request, response) => {
 
     const document = await createDocument({ title, category, file });
 
+    try {
+      await extractAndSaveDocumentText(document);
+    } catch (error) {
+      console.error("PDF extraction error:", error);
+    }
+
     return response.status(201).json({
       success: true,
       document
@@ -93,6 +101,32 @@ export const getDocuments = async (request, response) => {
     return response.status(500).json({
       success: false,
       message: "Failed to fetch documents."
+    });
+  }
+};
+
+export const getDocumentText = async (request, response) => {
+  try {
+    const document = await getDocumentTextById(request.params.id);
+
+    if (!document) {
+      return response.status(404).json({
+        success: false,
+        message: "Document not found."
+      });
+    }
+
+    return response.status(200).json({
+      documentId: document._id,
+      title: document.title,
+      totalPages: document.totalPages,
+      extractedText: document.extractedText || ""
+    });
+  } catch (error) {
+    console.error("Get document text error:", error);
+    return response.status(500).json({
+      success: false,
+      message: "Failed to fetch extracted text."
     });
   }
 };

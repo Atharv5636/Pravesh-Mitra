@@ -198,6 +198,12 @@ function Admin() {
                 <div className="space-y-1">
                   <p className="text-lg font-medium text-slate-900">{document.title}</p>
                   <p className="text-sm text-slate-600">{document.category}</p>
+                  <p className="text-sm text-slate-600">
+                    Status: {document.extractionStatus || "pending"}
+                  </p>
+                  <p className="text-sm text-slate-600">
+                    Pages: {document.totalPages ?? 0}
+                  </p>
                   <p className="text-sm text-slate-500">
                     Uploaded on{" "}
                     {document.uploadDate

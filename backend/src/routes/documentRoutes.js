@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import {
   deleteDocument,
+  getDocumentText,
   getDocuments,
   uploadDocument
 } from "../controllers/documentController.js";
@@ -30,6 +31,7 @@ const handleDocumentUpload = (request, response, next) => {
 };
 
 router.get("/", getDocuments);
+router.get("/:id/text", getDocumentText);
 router.post("/upload", handleDocumentUpload, uploadDocument);
 router.delete("/:id", deleteDocument);
 
