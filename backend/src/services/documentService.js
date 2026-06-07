@@ -3,6 +3,10 @@ import path from "path";
 import Document from "../models/Document.js";
 import DocumentChunk from "../models/DocumentChunk.js";
 import { splitTextIntoChunks } from "./chunkingService.js";
+import {
+  deleteChromaEmbeddings,
+  syncChunkEmbeddingToChroma
+} from "./chromaService.js";
 import { generateEmbedding } from "./embeddingService.js";
 import { extractPdfText } from "./pdfParserService.js";
 
@@ -35,6 +39,7 @@ export const getAllDocuments = async () => {
 const generateEmbeddingsForDocumentChunks = async (document) => {
   const chunks = await DocumentChunk.find({ documentId: document._id }).sort({ chunkIndex: 1 });
   let completedCount = 0;
+  let syncedCount = 0;
 
   for (const chunk of chunks) {
     try {
@@ -42,11 +47,27 @@ const generateEmbeddingsForDocumentChunks = async (document) => {
       chunk.embedding = embedding;
       chunk.embeddingStatus = "completed";
       chunk.embeddedAt = new Date();
+
+      await syncChunkEmbeddingToChroma({
+        chunkId: chunk._id.toString(),
+        chunkText: chunk.chunkText,
+        embedding,
+        metadata: {
+          documentId: document._id.toString(),
+          chunkIndex: chunk.chunkIndex,
+          title: document.title,
+          category: document.category
+        }
+      });
+
+      chunk.chromaStatus = "synced";
       await chunk.save();
       completedCount += 1;
+      syncedCount += 1;
     } catch (error) {
       chunk.embedding = [];
       chunk.embeddingStatus = "failed";
+      chunk.chromaStatus = "failed";
       chunk.embeddedAt = null;
       await chunk.save();
       console.error(`Embedding generation failed for chunk ${chunk._id}:`, error);
@@ -60,6 +81,7 @@ const generateEmbeddingsForDocumentChunks = async (document) => {
   console.log(`Document: ${document.fileName}`);
   console.log(`Chunks: ${chunks.length}`);
   console.log(`Embeddings Generated: ${completedCount}`);
+  console.log(`Chroma Synced: ${syncedCount}`);
 };
 
 export const extractAndSaveDocumentText = async (document) => {
@@ -80,6 +102,7 @@ export const extractAndSaveDocumentText = async (document) => {
           chunkLength: chunk.chunkLength,
           embedding: [],
           embeddingStatus: "pending",
+          chromaStatus: "pending",
           embeddedAt: null
         }))
       );
@@ -121,7 +144,7 @@ export const getDocumentChunksById = async (documentId) => {
   }
 
   const chunks = await DocumentChunk.find({ documentId })
-    .select("-_id chunkIndex chunkText chunkLength embeddingStatus embeddedAt createdAt")
+    .select("_id chunkIndex chunkText chunkLength embeddingStatus chromaStatus embeddedAt createdAt")
     .sort({ chunkIndex: 1 });
 
   return {
@@ -142,7 +165,11 @@ export const deleteDocumentById = async (documentId) => {
   }
 
   const absoluteFilePath = path.resolve(process.cwd(), document.filePath);
+  const chunkIds = (
+    await DocumentChunk.find({ documentId }).select("_id")
+  ).map((chunk) => chunk._id.toString());
 
+  await deleteChromaEmbeddings(chunkIds);
   await DocumentChunk.deleteMany({ documentId });
   await fs.rm(absoluteFilePath, { force: true });
   await document.deleteOne();

@@ -29,6 +29,11 @@ const documentChunkSchema = new mongoose.Schema({
     enum: ["pending", "completed", "failed"],
     default: "pending"
   },
+  chromaStatus: {
+    type: String,
+    enum: ["pending", "synced", "failed"],
+    default: "pending"
+  },
   embeddedAt: {
     type: Date,
     default: null

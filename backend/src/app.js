@@ -2,10 +2,12 @@ import cors from "cors";
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import chromaRoutes from "./routes/chromaRoutes.js";
 import chunkRoutes from "./routes/chunkRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
+import searchRoutes from "./routes/searchRoutes.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +24,8 @@ app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 
 app.use("/api", healthRoutes);
 app.use("/api", chatRoutes);
+app.use("/api/search", searchRoutes);
+app.use("/api/chroma", chromaRoutes);
 app.use("/api/chunks", chunkRoutes);
 app.use("/api/documents", documentRoutes);
 
