@@ -1,12 +1,29 @@
 import { useState } from "react";
 import { sendChatMessage } from "../services/chatService";
 
+const getFriendlyErrorMessage = (error) => {
+  const status = error?.status;
+
+  if (status === 503) {
+    return "AI service is currently busy. Please try again in a few seconds.";
+  }
+
+  if (status === 429) {
+    return "Too many requests. Please wait before trying again.";
+  }
+
+  if (status === 500) {
+    return "Something went wrong. Please try again later.";
+  }
+
+  return error?.message || "Something went wrong. Please try again later.";
+};
+
 function Chat() {
   const [message, setMessage] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [submittedMessage, setSubmittedMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState([]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -20,15 +37,27 @@ function Chat() {
 
     setIsLoading(true);
     setError("");
-    setAnswer("");
-    setSubmittedMessage(trimmedMessage);
+
+    const userMessage = {
+      id: Date.now(),
+      role: "user",
+      content: trimmedMessage
+    };
+
+    setMessages((currentMessages) => [...currentMessages, userMessage]);
 
     try {
       const response = await sendChatMessage(trimmedMessage);
-      setAnswer(response);
+      const assistantMessage = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content: response?.answer || ""
+      };
+
+      setMessages((currentMessages) => [...currentMessages, assistantMessage]);
       setMessage("");
     } catch (requestError) {
-      setError(requestError.message || "Something went wrong.");
+      setError(getFriendlyErrorMessage(requestError));
     } finally {
       setIsLoading(false);
     }
@@ -71,21 +100,25 @@ function Chat() {
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
       ) : null}
 
-      {submittedMessage ? (
+      {messages.length > 0 ? (
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="space-y-1">
-            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">User</p>
-            <p className="text-slate-900">{submittedMessage}</p>
-          </div>
+          {messages.map((entry) => (
+            <div key={entry.id} className="space-y-1">
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                {entry.role === "user" ? "User" : "Assistant"}
+              </p>
+              <p className="whitespace-pre-wrap text-slate-900">{entry.content || ""}</p>
+            </div>
+          ))}
 
-          <div className="space-y-1">
-            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Assistant
-            </p>
-            <p className="whitespace-pre-wrap text-slate-900">
-              {isLoading ? "Loading response..." : answer}
-            </p>
-          </div>
+          {isLoading ? (
+            <div className="space-y-1">
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                Assistant
+              </p>
+              <p className="whitespace-pre-wrap text-slate-900">Loading response...</p>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

@@ -9,11 +9,22 @@ export const sendChatMessage = async (message) => {
     body: JSON.stringify({ message })
   });
 
-  const data = await response.json();
+  let data = null;
 
-  if (!response.ok || !data.success) {
-    throw new Error(data.error || "Failed to fetch chat response");
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
   }
 
-  return data.answer;
+  if (!response.ok || !data?.success) {
+    const error = new Error(data?.message || "Something went wrong. Please try again later.");
+    error.status = response.status;
+    error.errorCode = data?.errorCode || "REQUEST_FAILED";
+    throw error;
+  }
+
+  return {
+    answer: data?.answer || ""
+  };
 };

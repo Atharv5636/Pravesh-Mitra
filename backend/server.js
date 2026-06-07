@@ -3,6 +3,7 @@ import app from "./src/app.js";
 import connectDB from "./src/config/db.js";
 
 dotenv.config();
+console.log("Gemini Key Loaded:", !!process.env.GEMINI_API_KEY);
 
 const port = process.env.PORT || 5000;
 
