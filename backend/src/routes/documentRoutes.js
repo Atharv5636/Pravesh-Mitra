@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import {
   deleteDocument,
+  getDocumentChunks,
   getDocumentText,
   getDocuments,
   uploadDocument
@@ -31,6 +32,7 @@ const handleDocumentUpload = (request, response, next) => {
 };
 
 router.get("/", getDocuments);
+router.get("/:id/chunks", getDocumentChunks);
 router.get("/:id/text", getDocumentText);
 router.post("/upload", handleDocumentUpload, uploadDocument);
 router.delete("/:id", deleteDocument);

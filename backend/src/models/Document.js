@@ -33,6 +33,10 @@ const documentSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  totalChunks: {
+    type: Number,
+    default: 0
+  },
   extractionStatus: {
     type: String,
     enum: ["pending", "completed", "failed"],

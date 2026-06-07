@@ -5,6 +5,7 @@ import {
   createDocument,
   deleteDocumentById,
   extractAndSaveDocumentText,
+  getDocumentChunksById,
   getAllDocuments,
   getDocumentTextById
 } from "../services/documentService.js";
@@ -127,6 +128,30 @@ export const getDocumentText = async (request, response) => {
     return response.status(500).json({
       success: false,
       message: "Failed to fetch extracted text."
+    });
+  }
+};
+
+export const getDocumentChunks = async (request, response) => {
+  try {
+    const result = await getDocumentChunksById(request.params.id);
+
+    if (!result) {
+      return response.status(404).json({
+        success: false,
+        message: "Document not found."
+      });
+    }
+
+    return response.status(200).json({
+      totalChunks: result.document.totalChunks || 0,
+      chunks: result.chunks
+    });
+  } catch (error) {
+    console.error("Get document chunks error:", error);
+    return response.status(500).json({
+      success: false,
+      message: "Failed to fetch document chunks."
     });
   }
 };
