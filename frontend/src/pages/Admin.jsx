@@ -207,6 +207,9 @@ function Admin() {
                   <p className="text-sm text-slate-600">
                     Chunks: {document.totalChunks ?? 0}
                   </p>
+                  <p className="text-sm text-slate-600">
+                    Embeddings: {document.embeddingsStatus || "pending"}
+                  </p>
                   <p className="text-sm text-slate-500">
                     Uploaded on{" "}
                     {document.uploadDate

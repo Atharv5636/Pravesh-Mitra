@@ -37,6 +37,11 @@ const documentSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  embeddingsStatus: {
+    type: String,
+    enum: ["pending", "completed", "failed"],
+    default: "pending"
+  },
   extractionStatus: {
     type: String,
     enum: ["pending", "completed", "failed"],

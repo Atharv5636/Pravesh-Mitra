@@ -3,6 +3,7 @@ import path from "path";
 import Document from "../models/Document.js";
 import DocumentChunk from "../models/DocumentChunk.js";
 import { splitTextIntoChunks } from "./chunkingService.js";
+import { generateEmbedding } from "./embeddingService.js";
 import { extractPdfText } from "./pdfParserService.js";
 
 export const createDocument = async ({ title, category, file }) => {
@@ -17,6 +18,7 @@ export const createDocument = async ({ title, category, file }) => {
     extractedText: "",
     totalPages: 0,
     totalChunks: 0,
+    embeddingsStatus: "pending",
     extractionStatus: "pending",
     uploadDate: new Date()
   });
@@ -28,6 +30,36 @@ export const getAllDocuments = async () => {
   return Document.find()
     .select("-extractedText")
     .sort({ uploadDate: -1 });
+};
+
+const generateEmbeddingsForDocumentChunks = async (document) => {
+  const chunks = await DocumentChunk.find({ documentId: document._id }).sort({ chunkIndex: 1 });
+  let completedCount = 0;
+
+  for (const chunk of chunks) {
+    try {
+      const embedding = await generateEmbedding(chunk.chunkText);
+      chunk.embedding = embedding;
+      chunk.embeddingStatus = "completed";
+      chunk.embeddedAt = new Date();
+      await chunk.save();
+      completedCount += 1;
+    } catch (error) {
+      chunk.embedding = [];
+      chunk.embeddingStatus = "failed";
+      chunk.embeddedAt = null;
+      await chunk.save();
+      console.error(`Embedding generation failed for chunk ${chunk._id}:`, error);
+    }
+  }
+
+  document.embeddingsStatus =
+    chunks.length > 0 && completedCount === chunks.length ? "completed" : "failed";
+  await document.save();
+
+  console.log(`Document: ${document.fileName}`);
+  console.log(`Chunks: ${chunks.length}`);
+  console.log(`Embeddings Generated: ${completedCount}`);
 };
 
 export const extractAndSaveDocumentText = async (document) => {
@@ -45,7 +77,10 @@ export const extractAndSaveDocumentText = async (document) => {
           documentId: document._id,
           chunkIndex: chunk.chunkIndex,
           chunkText: chunk.chunkText,
-          chunkLength: chunk.chunkLength
+          chunkLength: chunk.chunkLength,
+          embedding: [],
+          embeddingStatus: "pending",
+          embeddedAt: null
         }))
       );
     }
@@ -53,15 +88,19 @@ export const extractAndSaveDocumentText = async (document) => {
     document.extractedText = extractionResult.text;
     document.totalPages = extractionResult.totalPages;
     document.totalChunks = chunks.length;
+    document.embeddingsStatus = "pending";
     document.extractionStatus = "completed";
     await document.save();
 
     console.log("Document Parsed");
     console.log(`Pages: ${document.totalPages}`);
     console.log(`Chunks Created: ${document.totalChunks}`);
+
+    await generateEmbeddingsForDocumentChunks(document);
   } catch (error) {
     document.extractionStatus = "failed";
     document.totalChunks = 0;
+    document.embeddingsStatus = "failed";
     await DocumentChunk.deleteMany({ documentId: document._id });
     await document.save();
     throw error;
@@ -82,13 +121,17 @@ export const getDocumentChunksById = async (documentId) => {
   }
 
   const chunks = await DocumentChunk.find({ documentId })
-    .select("-_id chunkIndex chunkText chunkLength createdAt")
+    .select("-_id chunkIndex chunkText chunkLength embeddingStatus embeddedAt createdAt")
     .sort({ chunkIndex: 1 });
 
   return {
     document,
     chunks
   };
+};
+
+export const getChunkEmbeddingMetadataById = async (chunkId) => {
+  return DocumentChunk.findById(chunkId).select("embedding embeddingStatus");
 };
 
 export const deleteDocumentById = async (documentId) => {

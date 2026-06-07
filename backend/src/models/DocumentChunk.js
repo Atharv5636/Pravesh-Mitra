@@ -20,6 +20,19 @@ const documentChunkSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  embedding: {
+    type: [Number],
+    default: []
+  },
+  embeddingStatus: {
+    type: String,
+    enum: ["pending", "completed", "failed"],
+    default: "pending"
+  },
+  embeddedAt: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now
